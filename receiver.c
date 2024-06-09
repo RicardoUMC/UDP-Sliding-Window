@@ -31,7 +31,7 @@ int main()
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
-        die("Error opening socket");
+        die("Error al abrir socket");
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -39,36 +39,45 @@ int main()
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-        die("Error on binding");
+        die("Error al enlazar");
 
-    FILE *file = fopen("archivo_recibido.txt", "wb");
+    // Receive the filename first
+    n = recvfrom(sockfd, &recv_packet, sizeof(recv_packet), 0, (struct sockaddr *)&cli_addr, &cli_len);
+    if (n < 0)
+        die("Error al recibir el nombre del archivo");
+
+    char filename[PACKET_SIZE];
+    strcpy(filename, recv_packet.data);
+    printf("Nombre del archivo recibido: %s\n", filename);
+
+    FILE *file = fopen(filename, "wb");
     if (file == NULL)
-        die("Error opening file for writing");
+        die("Error al abrir el archivo de escritura");
 
-    int expected_seq_num = 0;
+    int expected_seq_num = 1;
     while (1)
     {
         n = recvfrom(sockfd, &recv_packet, sizeof(recv_packet), 0, (struct sockaddr *)&cli_addr, &cli_len);
         if (n < 0)
-            die("Error receiving packet");
+            die("Error al recibir el paquete");
 
-        printf("Received packet with seq num: %d, data size: %d\n", recv_packet.seq_num, recv_packet.data_size);
+        printf("Paquete recibido con número de sequencia: %d, tamaño de datos: %d\n", recv_packet.seq_num, recv_packet.data_size);
 
         if (recv_packet.seq_num == expected_seq_num)
         {
             fwrite(recv_packet.data, 1, recv_packet.data_size, file);
-            printf("Wrote %d bytes to file\n", recv_packet.data_size);
+            printf("Bytes escritos en el archivo: %d\n", recv_packet.data_size);
             expected_seq_num++;
         }
 
-        // Send ACK
+        // Enviar ACK
         ack_packet.seq_num = recv_packet.seq_num;
         sendto(sockfd, &ack_packet, sizeof(ack_packet), 0, (struct sockaddr *)&cli_addr, cli_len);
-        printf("Sent ACK for packet with seq num: %d\n", recv_packet.seq_num);
+        printf("ACK enviado para el paquete con número de secuencia: %d\n", recv_packet.seq_num);
 
         if (recv_packet.data_size < PACKET_SIZE)
         {
-            // If data_size is less than PACKET_SIZE, it means end of file
+            // Si data_size es menor a PACKET_SIZE, es el final del archivo
             break;
         }
     }

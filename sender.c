@@ -22,8 +22,14 @@ void die(char *msg)
     exit(1);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc < 2)
+    {
+        fprintf(stderr, "Uso: %s <nombre_del_archivo>\n", argv[0]);
+        exit(1);
+    }
+
     int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct packet send_packet, recv_packet;
@@ -31,18 +37,26 @@ int main()
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
-        die("Error opening socket");
+        die("Error al abrir socket");
 
     memset((char *)&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(12345);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    FILE *file = fopen("archivo.txt", "rb");
+    FILE *file = fopen(argv[1], "rb");
     if (file == NULL)
-        die("Error opening file");
+        die("Error al abrir el archivo");
 
-    int base = 0, nextseqnum = 0;
+    // Envia el nombre del archivo primero 
+    send_packet.seq_num = 0;
+    send_packet.data_size = strlen(argv[1]) + 1;
+    strcpy(send_packet.data, argv[1]);
+
+    sendto(sockfd, &send_packet, sizeof(send_packet), 0, (struct sockaddr *)&serv_addr, serv_len);
+    printf("Nombre del archivo enviado: %s\n", argv[1]);
+
+    int base = 1, nextseqnum = 1;
     while (1)
     {
         if (nextseqnum < base + WINDOW_SIZE && !feof(file))
@@ -50,31 +64,31 @@ int main()
             send_packet.seq_num = nextseqnum;
             send_packet.data_size = fread(send_packet.data, 1, PACKET_SIZE, file);
             if (send_packet.data_size < 0)
-                die("Error reading from file");
+                die("Error al leer del archivo");
 
             sendto(sockfd, &send_packet, sizeof(send_packet), 0, (struct sockaddr *)&serv_addr, serv_len);
-            printf("Sent packet with seq num: %d, data size: %d\n", nextseqnum, send_packet.data_size);
+            printf("Paquete enviado con número de sequencia: %d, tamaño de datos: %d\n", nextseqnum, send_packet.data_size);
 
             if (base == nextseqnum)
             {
-                alarm(2); // Set a timer for ACK
+                alarm(2); // Establecer temporizador del ACK
             }
 
             nextseqnum++;
         }
 
-        // Receive ACK
+        // Recibir ACK
         n = recvfrom(sockfd, &recv_packet, sizeof(recv_packet), 0, (struct sockaddr *)&serv_addr, &serv_len);
         if (n < 0)
-            die("Error receiving ACK");
+            die("Error al recibir ACK");
 
-        printf("Received ACK for packet with seq num: %d\n", recv_packet.seq_num);
+        printf("ACK recibido para el paquete con número de sequencia: %d\n", recv_packet.seq_num);
 
         if (recv_packet.seq_num >= base)
         {
             base = recv_packet.seq_num + 1;
-            printf("Updated base to: %d\n", base);
-            alarm(0); // Stop the timer
+            printf("Base actualizada a: %d\n", base);
+            alarm(0); // Detiene el temporizador
         }
 
         if (feof(file) && base == nextseqnum)
