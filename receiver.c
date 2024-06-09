@@ -41,7 +41,8 @@ int main()
     if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         die("Error al enlazar");
 
-    // Receive the filename first
+    // Recibir el nombre del archivo primero
+    printf("Esperando a recibir el nombre del archivo...\n");
     n = recvfrom(sockfd, &recv_packet, sizeof(recv_packet), 0, (struct sockaddr *)&cli_addr, &cli_len);
     if (n < 0)
         die("Error al recibir el nombre del archivo");
@@ -61,7 +62,7 @@ int main()
         if (n < 0)
             die("Error al recibir el paquete");
 
-        printf("Paquete recibido con número de sequencia: %d, tamaño de datos: %d\n", recv_packet.seq_num, recv_packet.data_size);
+        printf("Paquete recibido con número de secuencia: %d, tamaño de datos: %d\n", recv_packet.seq_num, recv_packet.data_size);
 
         if (recv_packet.seq_num == expected_seq_num)
         {
