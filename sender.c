@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
                 die("Error al leer del archivo");
 
             sendto(sockfd, &send_packet, sizeof(send_packet), 0, (struct sockaddr *)&serv_addr, serv_len);
-            printf("Paquete enviado con número de sequencia: %d, tamaño de datos: %d\n", nextseqnum, send_packet.data_size);
+            printf("Paquete enviado con número de secuencia: %d, tamaño de datos: %d\n", nextseqnum, send_packet.data_size);
 
             if (base == nextseqnum)
             {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
         if (n < 0)
             die("Error al recibir ACK");
 
-        printf("ACK recibido para el paquete con número de sequencia: %d\n", recv_packet.seq_num);
+        printf("ACK recibido para el paquete con número de secuencia: %d\n", recv_packet.seq_num);
 
         if (recv_packet.seq_num >= base)
         {
